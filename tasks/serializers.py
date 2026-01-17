@@ -16,6 +16,17 @@ class LabelSerializer(serializers.ModelSerializer):
         model = Label
         fields = ['id', 'name', 'color']
 
+class LabelCreateSerializer(serializers.ModelSerializer):
+    """create labels for a project"""
+    class Meta:
+        model = Label
+        fields = ['name','color', 'project']
+        
+class LabelUpdateSerializer(serializers.ModelSerializer):
+    """Update a model"""
+    class Meta:
+        model = Label
+        fields = ['name', 'color']
 
 class CommentSerializer(serializers.ModelSerializer):
     """
@@ -45,7 +56,7 @@ class CommentCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating comments."""
     class Meta:
         model = Comment
-        fields = ['content']
+        fields = ['content', 'task']
 
 
 class TaskSerializer(serializers.ModelSerializer):

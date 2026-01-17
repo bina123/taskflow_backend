@@ -11,10 +11,12 @@ Route::post('/tasks/{task}/comments', [TaskController::class, 'addComment']);
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import TaskViewSet
+from .views import TaskViewSet, LabelViewSet, CommentViewSet
 
 router = DefaultRouter()
 router.register('tasks', TaskViewSet, basename='task')
+router.register('labels', LabelViewSet, basename='label')
+router.register('comments', CommentViewSet, basename='comment')
 
 app_name = 'tasks'
 

@@ -13,7 +13,7 @@ from django.db.models import Q, F
 from projects.permissions import IsTaskProjectMember, CanAssignTask, IsProjectAdmin, CanChangeStatus
 from projects.models import ProjectMember, Project
 
-from .models import Task, Comment
+from .models import Task, Comment, Label
 from .serializers import (
     TaskSerializer,
     TaskCreateSerializer,
@@ -22,6 +22,9 @@ from .serializers import (
     TaskWithCommentsSerializer,
     CommentSerializer,
     CommentCreateSerializer,
+    LabelCreateSerializer,
+    LabelUpdateSerializer,
+    LabelSerializer
 )
 
 
@@ -323,3 +326,87 @@ class TaskViewSet(viewsets.ModelViewSet):
             'message': f"Status changed for '{task.title}' to {new_status}",
             'task' : TaskSerializer(task).data
         })
+        
+    @action(detail=True, methods=['post','delete'])
+    def labels(self, request, pk=None):
+        """
+        Add/remove labels from task
+        POST /api/tasks/{id}/labels/   - Add label
+        DELETE /api/tasks/{id}/labels/ - Remove label
+        
+        Body: {"label_id": 1}
+        """
+        task = self.get_object()
+        label_id = request.data.get('label_id')
+        
+        if not label_id:
+            return Response({
+                'error': 'Label is required'
+            },
+            status  = status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            label = Label.objects.get(id=label_id, project=task.project)
+        except Label.DoesNotExist:
+            return Response(
+                {'error': 'Label not found in this project'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+        if request.method == 'POST':
+            label.tasks.add(task)
+            return Response({
+                'message': f'Label {label.name} added to a task',
+                'task': TaskSerializer(task).data
+            })
+        elif request.method == 'DELETE':
+            label.tasks.remove(task)
+            return Response({
+                'message': f'Label {label.name} removed from a task',
+                'task': TaskSerializer(task).data
+            })
+        
+        
+class LabelViewSet(viewsets.ModelViewSet):
+    """
+    Crud for Labels.
+    Labels belong to a project and can be attached to multiple tasks.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Label.objects.all()
+    
+    def get_queryset(self):
+        """Get labels for projects user has access to."""
+        user = self.request.user
+        return Label.objects.filter(
+            Q(project__owner = user) | Q(project__memberships__user=user)
+        ).distinct()
+        
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return LabelCreateSerializer
+        elif self.action in ['update','partial_udpate']:
+            return LabelUpdateSerializer
+        return LabelSerializer
+    
+class CommentViewSet(viewsets.ModelViewSet):
+    """CRUD for comment"""
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Comment.objects.all()
+    
+    def get_queryset(self):
+        """Get comments for tasks user has access to."""
+        user = self.request.user
+        return Comment.objects.filter(
+            Q(task__project__owner=user) | Q(task__project__memberships__user=user)
+        ).distinct().select_related('user','task')
+        
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CommentCreateSerializer
+        return CommentSerializer
+    
+    def perform_create(self, serializer):
+        """ser user when creating comment"""
+        serializer.save(user=self.request.user)
+    
