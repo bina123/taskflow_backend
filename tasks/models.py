@@ -186,3 +186,72 @@ class Label(models.Model):
     
     def __str__(self):
         return self.name
+    
+class Activity(models.Model):
+    """
+    Activity logs for tracking all changes
+    """
+    class ActionType(models.TextChoices):
+        TASK_CREATED= 'task_created', 'Task Created'
+        TASK_UPDATED = 'task_updated', 'Task Updated'
+        TASK_DELETED = 'task_deleted', 'Task Deleted'
+        TASK_STATUS_CHANGED = 'task_status_changed', "Task Status Changed"
+        TASK_ASSIGNED = 'task_assigned', 'Task Assigned'
+        TASK_UNASSIGNED = 'task_unassigned', 'Task Unassigned' 
+        
+        #Comment actions
+        COMMENT_ADDED = 'comment_added', 'Comment Added'
+        COMMENT_DELETED = 'comment_deleted', 'Comment Deleted'
+        
+        #Label Actions
+        LABEL_CREATED = 'label_created', 'Label Created'
+        LABEL_REMOVED = 'label_removed', 'Label Removed'
+        
+        #Project actions
+        MEMBER_JOINED = 'member_joined', 'Member Joined'
+        MEMBER_LEFT = 'member_left', 'Member Left'
+        PROJECT_UPDATED = 'project_updated', 'Project Updated'
+        
+    #Who performed the action
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='activities'
+    )
+    
+    # Which project
+    project = models.ForeignKey(
+        'projects.Project',
+        on_delete=models.CASCADE,
+        related_name='activities'
+    )
+
+    #Action Type
+    action = models.CharField(
+        max_length=50,
+        choices= ActionType.choices
+    )
+
+    # Optional: Related task
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activities'
+    )
+    
+    details = models.JSONField(default=dict, blank=True)
+    
+    description = models.CharField(max_length=500)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'activities'
+        ordering = ['-created_at']
+        verbose_name_plural = 'Activities'
+        
+    def __str__(self):
+        return f"{self.user} {self.action} - {self.created_at}"

@@ -10,10 +10,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q, F
 
+from .services import ActivityService
+
 from projects.permissions import IsTaskProjectMember, CanAssignTask, IsProjectAdmin, CanChangeStatus
 from projects.models import ProjectMember, Project
 
-from .models import Task, Comment, Label
+from .models import Task, Comment, Label, Activity
 from .serializers import (
     TaskSerializer,
     TaskCreateSerializer,
@@ -114,6 +116,18 @@ class TaskViewSet(viewsets.ModelViewSet):
         elif self.action == 'retrieve':
             return TaskWithCommentsSerializer
         return TaskSerializer
+    
+    def perform_create(self, serializer):
+        """Create a task and log a activity"""
+        task = serializer.save(created_by = self.request.user)
+        ActivityService.log_task_created(self.request.user, task)
+        
+    def perfom_destroy(self, instance):
+        """Delete a task and log a activity"""
+        project = instance.project
+        title = instance.title
+        instance.delete()
+        ActivityService.log_task_deleted(self.request.user, project, title)
     
     # ==========================================================================
     # Custom Actions
@@ -260,6 +274,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         if assignee_id is None:
             task.assignee = None
             task.save()
+            ActivityService.log_task_unassigned(self.user.request, task)
             return Response({
                 'message': 'Task unassigned',
                 'task': TaskSerializer(task).data,
@@ -291,6 +306,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             
         task.assignee = assignee
         task.save()
+        ActivityService.log_task_assigned(self.user.request, task, assignee)
         
         return Response({
             'message': f'Task assigned to {assignee.email}',
@@ -319,8 +335,11 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
             
+        old_status = task.status
         task.status = new_status
         task.save()
+        
+        ActivityService.log_status_changes(self.request.user, task, old_status, new_status)
         
         return Response({
             'message': f"Status changed for '{task.title}' to {new_status}",
@@ -355,12 +374,14 @@ class TaskViewSet(viewsets.ModelViewSet):
             
         if request.method == 'POST':
             label.tasks.add(task)
+            ActivityService.log_label_added(request.user, task, label)
             return Response({
                 'message': f'Label {label.name} added to a task',
                 'task': TaskSerializer(task).data
             })
         elif request.method == 'DELETE':
             label.tasks.remove(task)
+            ActivityService.log_label_removed(request.user, task, label)
             return Response({
                 'message': f'Label {label.name} removed from a task',
                 'task': TaskSerializer(task).data
@@ -408,5 +429,6 @@ class CommentViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """ser user when creating comment"""
-        serializer.save(user=self.request.user)
+        comment = serializer.save(user=self.request.user)
+        ActivityService.log_comment_added(self.request.user, comment)
     

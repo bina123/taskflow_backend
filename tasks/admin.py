@@ -1,7 +1,7 @@
 """Admin configuration for tasks app."""
 
 from django.contrib import admin
-from .models import Task, Comment, Label
+from .models import Task, Comment, Label, Activity
 
 
 class CommentInline(admin.TabularInline):
@@ -29,3 +29,11 @@ class CommentAdmin(admin.ModelAdmin):
 class LabelAdmin(admin.ModelAdmin):
     list_display = ['name', 'project', 'color']
     list_filter = ['project']
+
+@admin.register(Activity)
+class ActivityAdmin(admin.ModelAdmin):
+    list_display = ['user','action','project', 'description','created_at']
+    list_filter = ['action', 'created_at', 'project']
+    search_fields = ['description', 'user__email']
+    raw_id_fields = ['user', 'project', 'task']
+    readonly_fields = ['created_at']

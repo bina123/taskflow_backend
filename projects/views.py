@@ -21,6 +21,7 @@ from .serializers import (
     ProjectMemberSerializer,
     InviteMemberSerializer
 )
+from tasks.serializers import ActivitySerializer
 
 User = get_user_model()
 
@@ -239,3 +240,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
         }
         
         return Response(data)
+    
+    @action(detail=True, methods=['get'])
+    def activities(self, request, pk=None):
+        """
+        GET /api/projects/{id}/activities/
+        
+        Returns activity feed for the project.
+        """
+        project = self.get_object()
+        activities = project.activities.select_related('user', 'task')[:50]
+        serializer = ActivitySerializer(activities, many=True)
+        return Response(serializer.data)

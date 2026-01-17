@@ -6,7 +6,7 @@ Laravel equivalent: TaskResource.php + TaskRequest.php + CommentResource.php
 """
 
 from rest_framework import serializers
-from .models import Task, Comment, Label
+from .models import Task, Comment, Label, Activity
 from accounts.serializers import UserSerializer
 
 
@@ -143,7 +143,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create task with current user as creator."""
         user = self.context['request'].user
-        task = Task.objects.create(created_by=user, **validated_data)
+        task = Task.objects.create(**validated_data)
         return task
 
 
@@ -177,3 +177,22 @@ class TaskWithCommentsSerializer(TaskSerializer):
     
     class Meta(TaskSerializer.Meta):
         fields = TaskSerializer.Meta.fields + ['comments']
+
+class ActivitySerializer(serializers.ModelSerializer):
+    """serilizer for activity log"""
+    user = UserSerializer(read_only=True)
+    task_title = serializers.CharField(source='task.title', read_only=True,allow_null=True)
+    
+    class Meta:
+        model = Activity
+        fields = [
+            'id',
+            'user',
+            'action',
+            'task',
+            'task_title',
+            'details',
+            'description',
+            'created_at'
+        ]
+    
