@@ -75,3 +75,28 @@ class CanAssignTask(permissions.BasePermission):
             return True
         
         return False
+    
+class CanChangeStatus(permissions.BasePermission):
+    """
+    Check if user is assignee or admin/owner 
+    """
+    message = "You don't have permission to change status of this task."
+    
+    def has_object_permission(self, request, view, obj):
+        project = obj.project
+        
+        if project.owner == request.user:
+            return True
+        
+        is_admin = project.memberships.filter(
+            user = request.user,
+            role= ProjectMember.Role.ADMIN
+        ).exists()
+        
+        if is_admin:
+            return True
+            
+        if obj.assignee == request.user:
+            return True
+
+        return False

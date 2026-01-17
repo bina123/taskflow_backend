@@ -10,8 +10,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q, F
 
-from projects.permissions import IsTaskProjectMember, CanAssignTask
-from projects.models import ProjectMember
+from projects.permissions import IsTaskProjectMember, CanAssignTask, IsProjectAdmin, CanChangeStatus
+from projects.models import ProjectMember, Project
 
 from .models import Task, Comment
 from .serializers import (
@@ -50,7 +50,8 @@ class TaskViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated(), IsTaskProjectMember()]
         elif self.action == 'assign':
             return [permissions.IsAuthenticated(), CanAssignTask()]
-        
+        elif self.action == 'change_status':
+            return [permissions.IsAuthenticated(), CanChangeStatus()]
         return [permissions.IsAuthenticated()]
         
     def get_queryset(self):
@@ -291,4 +292,34 @@ class TaskViewSet(viewsets.ModelViewSet):
         return Response({
             'message': f'Task assigned to {assignee.email}',
             'task': TaskSerializer(task).data
+        })
+        
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsTaskProjectMember, IsProjectAdmin])
+    def change_status(self, request, pk=None):
+        """
+        Change status of the task if user is assignee, admin or owner of the project
+        """
+        task = self.get_object()
+        
+        new_status = request.data.get('status')
+        
+        if new_status == None:
+            return Response(
+                {'error': 'Status is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        valid_statuses = [choice[0] for choice in Task.Status.choices]
+        if new_status not in valid_statuses:
+            return Response(
+                {'error': f'Invalid status. Must be one of: {valid_statuses}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        task.status = new_status
+        task.save()
+        
+        return Response({
+            'message': f"Status changed for '{task.title}' to {new_status}",
+            'task' : TaskSerializer(task).data
         })
