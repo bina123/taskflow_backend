@@ -16,6 +16,9 @@ from projects.permissions import IsTaskProjectMember, CanAssignTask, IsProjectAd
 from projects.models import ProjectMember, Project
 
 from .models import Task, Comment, Label, Activity
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from .filters import TaskFilter
 from .serializers import (
     TaskSerializer,
     TaskCreateSerializer,
@@ -59,6 +62,12 @@ class TaskViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated(), CanChangeStatus()]
         return [permissions.IsAuthenticated()]
         
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = TaskFilter
+    search_fields = ['title', 'description']
+    ordering_fields = ['created_at', 'updated_at', 'due_date', 'priority', 'position']
+    ordering = ['position', '-created_at']
+    
     def get_queryset(self):
         """
         Get tasks for projects user has access to.
@@ -83,7 +92,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Base queryset: tasks from projects user has access to
         queryset = Task.objects.filter(
             Q(project__owner=user) | Q(project__memberships__user=user)
-        ).distinct().select_related('assignee', 'created_by', 'project')
+        ).distinct().select_related('assignee', 'created_by', 'project').prefetch_related('labels')
         
         # Apply filters from query params
         project_id = self.request.query_params.get('project_id')

@@ -252,3 +252,23 @@ class ProjectViewSet(viewsets.ModelViewSet):
         activities = project.activities.select_related('user', 'task')[:50]
         serializer = ActivitySerializer(activities, many=True)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def tasks(self, request, pk=None):
+        from tasks.models import Task
+        from tasks.serializers import TaskSerializer
+        from tasks.filters import TaskFilter
+        
+        project = self.get_object()
+        tasks = Task.objects.filter(project=project).select_related('assignee', 'created_by')
+        
+        filterset = TaskFilter(request.GET, queryset=tasks, request=request)
+        filtered_tasks = filterset.qs
+        
+        page = self.paginate.queryset(filtered_tasks)
+        if page is not None:
+            serializer = TaskSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = TaskSerializer(filtered_tasks, many=True)
+        return Response(TaskSerializer(serializer.data))

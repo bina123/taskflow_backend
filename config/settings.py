@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',           # Laravel equivalent: API Resources + Controllers
     'rest_framework_simplejwt', # Laravel equivalent: Sanctum/Passport
     'corsheaders',              # Laravel equivalent: fruitcake/laravel-cors
+    'django_filters',
     
     # Local apps (like your Laravel app/ folders)
     'accounts.apps.AccountsConfig',
@@ -190,6 +191,7 @@ REST_FRAMEWORK = {
     
     # Filtering and Search
     'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
